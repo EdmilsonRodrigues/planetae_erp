@@ -117,7 +117,7 @@ class SQLDatabase(Database):
             self.cursor.execute(query)
             return True
         except Exception as e:
-            return False
+            return str(e)
 
     async def update_table(self, name: str, signature: dict):
         raise NotImplementedError
