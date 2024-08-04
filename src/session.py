@@ -12,7 +12,7 @@ from src.config import (
     DATABASE_PASSWORD,
     DATABASE,
 )
-from models.exceptions import CouldNotConnectWithDatabaseException
+from src.models.exceptions import CouldNotConnectWithDatabaseException
 import sys
 
 
