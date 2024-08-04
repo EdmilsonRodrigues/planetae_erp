@@ -41,7 +41,7 @@ async def initialize_database():
                 )
                 return db
             except Exception as e:
-                raise CouldNotConnectWithDatabaseException(e)
+                raise CouldNotConnectWithDatabaseException(str(e))
         case "mongodb":
             client = AsyncIOMotorClient(host=DATABASE_HOST, port=DATABASE_PORT)
             db = client[DATABASE]
@@ -99,17 +99,17 @@ class SQLDatabase(Database):
         return await super().initialize()
 
     async def create_table(self, name: str, signature: Dict[str, str]) -> bool:
-        query = f"CREATE DATABASE IF NOT EXISTS {name} ("
+        query = f"CREATE TABLE {name} (\n"
         index = None
         for variable, sig in signature.items():
             if "PRIMARY KEY" in sig:
                 index = variable
                 sig = sig.replace("PRIMARY KEY,", ",")
-            query += f"{variable} {sig},"
+            query += f"{variable} {sig},\n"
         if index is None:
             index = "id"
-            query = query.split("(")
-            id_index = "(id int NOT NULL AUTO_INCREMENT,"
+            query = query.split("(\n")
+            id_index = "(\nid int NOT NULL AUTO_INCREMENT,\n"
             query = "".join((query[0], id_index, query[1]))
         query += f"PRIMARY KEY({index})"
         query += ") default charset=utf8mb4;"
@@ -117,7 +117,9 @@ class SQLDatabase(Database):
             self.cursor.execute(query)
             return True
         except Exception as e:
-            return str(e)
+            with open("log.txt", "w") as sys.stdout:
+                print(str(e))
+            return False
 
     async def update_table(self, name: str, signature: dict):
         raise NotImplementedError
@@ -157,7 +159,7 @@ class MariaDB(SQLDatabase):
                 )
                 cursor = conn.cursor()
                 cursor.execute(
-                    "CREATE DATABASE planetae CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+                    "CREATE TABLE planetae;"
                 )
                 cursor.close()
                 conn.close()
@@ -171,7 +173,7 @@ class MariaDB(SQLDatabase):
             self.cursor: mariadb.Cursor = self.db.cursor()
             return self
         except mariadb.Error as e:
-            raise CouldNotConnectWithDatabaseException(e)
+            raise CouldNotConnectWithDatabaseException(str(e))
 
 
 class NoSQLDatabase(Database):
