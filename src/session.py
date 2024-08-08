@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict
+from typing import Any
 import mysql.connector
 from motor.motor_asyncio import AsyncIOMotorClient
 import mariadb
@@ -64,11 +64,17 @@ class Database:
     async def initialize(self) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def create_table(self, name: str, signature: dict) -> Any:
+    async def create_table(self, name: str, signature: dict) -> bool:
         src.logger.log_exception(NotImplementedError)
+        return False
 
-    async def update_table(self, name: str, signature: dict) -> Any:
+    async def add_collumn_to_table(self, table_name: str, signature: dict, after: str | None = None, first: bool = False) -> bool:
         src.logger.log_exception(NotImplementedError)
+        return False
+
+    async def remove_collumn_from_table(self, table_name: str, key: str) -> bool:
+        src.logger.log_exception(NotImplementedError)
+        return False
 
     async def change_table(self, name, signature: dict) -> Any:
         src.logger.log_exception(NotImplementedError)
@@ -76,24 +82,24 @@ class Database:
     async def delete_table(self, name: str) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def insert_document(self, document: dict) -> Any:
+    async def insert_document(self, table_name: str, document: dict) -> Any:
         src.logger.log_exception(NotImplementedError)
 
     async def update_document(
-        self, search_key: str, search_value: Any, document: dict
+        self, table_name: str, search_key: str, search_value: Any, document: dict
     ) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def delete_document(self, search_key: str, search_value: Any) -> Any:
+    async def delete_document(self, table_name: str, search_key: str, search_value: Any) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def create_index(self, key: str) -> Any:
+    async def create_index(self, table_name: str, key: str) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def find_document(self, query: dict[str, Any]) -> Any:
+    async def find_document(self, table_name: str, query: dict[str, Any]) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def find_documents(self, query: dict[str, Any]) -> list[Any]:  # type: ignore
+    async def find_documents(self, table_name: str, query: dict[str, Any]) -> list[Any]:  # type: ignore
         src.logger.log_exception(NotImplementedError)
 
 
@@ -109,8 +115,13 @@ class SQLDatabase(Database):
         return await super().initialize()
 
     async def create_table(
-        self, name: str, signature: Dict[str, str], force: bool = False
+        self, name: str, signature: dict[str, str], force: bool = False
     ) -> bool:
+        """
+        Creates a table in a SQL Database.
+
+        :param #! learn how to do this
+        """
         query = f"CREATE TABLE {name} (\n"
         index = None
         for variable, sig in signature.items():
@@ -129,14 +140,45 @@ class SQLDatabase(Database):
             if force is True:
                 force_query = f"DROP TABLE IF EXISTS {name};"
                 self.cursor.execute(force_query)
+                src.logger.log_string(f"Dropped table {name} if it existed")
             self.cursor.execute(query)
+            src.logger.log_string(f"Created table {name}")
             return True
         except Exception as e:
             src.logger.log_exception(e)
             return False
 
-    async def update_table(self, name: str, signature: dict) -> Any:
-        src.logger.log_exception(NotImplementedError)
+    async def add_collumn_to_table(self, table_name: str, signature: dict, after: str | None = None, first: bool = False) -> bool:
+        item = tuple(signature.items())
+        sig = f"{item[0]} {item[1]}"
+        af = ""
+        fi = "" 
+        if after is not None:
+            af += f" after {after}"
+        elif first:
+            fi += f" first"
+        query = "ALTER TABLE " + table_name + " ADD COLLUMN " +  sig + af + fi + ";"
+        try:
+            self.cursor.execute(query)
+            src.logger.log_string(f"Column {sig} added to table {table_name}" + af + fi)
+            return True
+        except Exception as e:
+            src.logger.log_exception(e)
+            return False
+
+    async def remove_collumn_from_table(self, table_name: str, key: str) -> bool:
+        query = "ALTER TABLE " + table_name + " DROP COLLUMN " + key + ";"
+        try:
+            self.cursor.execute(query)
+            src.logger.log_string(f"Collumn {key} dropped from the table.")
+            return True
+        except Exception as e:
+            src.logger.log_exception(e)
+            return False
+    
+    async def change_signature_from_column(self, table_name: str, signature: dict):
+        item = tuple(signature.items())
+        query = "ALTER TABLE " + table_name + " " + item[0]
 
     async def change_table(self, name, signature: dict) -> Any:
         src.logger.log_exception(NotImplementedError)
@@ -144,28 +186,29 @@ class SQLDatabase(Database):
     async def delete_table(self, name: str) -> bool:
         try:
             self.cursor.execute(f"DROP TABLE {name};")
+            src.logger.log_string(f"Dropped table {name}")
             return True
         except Exception:
             return False
 
-    async def insert_document(self, document: dict) -> Any:
-        src.logger.log_exception(NotImplementedError)
+    async def insert_document(self, table_name: str, document: dict) -> Any:
+        pass
 
     async def update_document(
-        self, search_key: str, search_value: Any, document: dict
+        self, table_name: str, search_key: str, search_value: Any, document: dict
     ) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def delete_document(self, search_key: str, search_value: Any) -> Any:
+    async def delete_document(self, table_name: str, search_key: str, search_value: Any) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def create_index(self, key: str) -> Any:
+    async def create_index(self, table_name: str, key: str) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def find_document(self, query: dict[str, Any]) -> Any:
+    async def find_document(self, table_name: str, query: dict[str, Any]) -> Any:
         src.logger.log_exception(NotImplementedError)
 
-    async def find_documents(self, query: dict[str, Any]) -> list[Any]:  # type: ignore
+    async def find_documents(self, table_name: str, query: dict[str, Any]) -> list[Any]:  # type: ignore
         src.logger.log_exception(NotImplementedError)
 
 

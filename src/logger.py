@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 
@@ -15,7 +16,7 @@ class Logger:
 
     def _log_output(self, output: Any, filename: str) -> None:
         with open(filename, "a") as log_file:
-            log_file.write(str(output) + "\n")
+            log_file.write(str(output) + " " + datetime.now().isoformat() + " " + "\n")
 
 
 @Logger
