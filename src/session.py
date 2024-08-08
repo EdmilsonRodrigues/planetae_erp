@@ -13,10 +13,10 @@ from src.config import (
     DATABASE,
 )
 from src.models.exceptions import CouldNotConnectWithDatabaseException
-import sys
+import src.logger
 
 
-async def initialize_database():
+async def initialize_database() -> Any:
     match DATABASE_CLIENT:
         case "mysql":
             try:
@@ -41,16 +41,18 @@ async def initialize_database():
                 )
                 return db
             except Exception as e:
-                raise CouldNotConnectWithDatabaseException(str(e))
+                src.logger.log_exception(CouldNotConnectWithDatabaseException(str(e)))
         case "mongodb":
             client = AsyncIOMotorClient(host=DATABASE_HOST, port=DATABASE_PORT)
             db = client[DATABASE]
             return db
         case "sqlite3":
-            raise NotImplementedError
+            src.logger.log_exception(NotImplementedError)
         case _:
-            raise CouldNotConnectWithDatabaseException(
-                f"{DATABASE_CLIENT} is not supported."
+            src.logger.log_exception(
+                CouldNotConnectWithDatabaseException(
+                    f"{DATABASE_CLIENT} is not supported."
+                )
             )
 
 
@@ -59,32 +61,40 @@ class Database:
     def __init__(self) -> None:
         self.db = None
 
-    async def initialize(self) -> "Database":
-        raise NotImplementedError
+    async def initialize(self) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def create_table(self, name: str, signature: dict):
-        raise NotImplementedError
+    async def create_table(self, name: str, signature: dict) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def update_table(self, name: str, signature: dict):
-        raise NotImplementedError
+    async def update_table(self, name: str, signature: dict) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def change_table(self, name, signature: dict):
-        raise NotImplementedError
+    async def change_table(self, name, signature: dict) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def delete_table(self, name: str):
-        raise NotImplementedError
+    async def delete_table(self, name: str) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def insert_document(self, document: dict):
-        raise NotImplementedError
+    async def insert_document(self, document: dict) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def update_document(self, search_key: str, search_value: Any, document: dict):
-        raise NotImplementedError
+    async def update_document(
+        self, search_key: str, search_value: Any, document: dict
+    ) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def delete_document(self, search_key: str, search_value: Any):
-        raise NotImplementedError
+    async def delete_document(self, search_key: str, search_value: Any) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def create_index(self, key: str):
-        raise NotImplementedError
+    async def create_index(self, key: str) -> Any:
+        src.logger.log_exception(NotImplementedError)
+
+    async def find_document(self, query: dict[str, Any]) -> Any:
+        src.logger.log_exception(NotImplementedError)
+
+    async def find_documents(self, query: dict[str, Any]) -> list[Any]:  # type: ignore
+        src.logger.log_exception(NotImplementedError)
 
 
 class SQLDatabase(Database):
@@ -95,10 +105,12 @@ class SQLDatabase(Database):
         super().__init__()
         self.cursor = None
 
-    async def initialize(self) -> "SQLDatabase":
+    async def initialize(self) -> Any:
         return await super().initialize()
 
-    async def create_table(self, name: str, signature: Dict[str, str]) -> bool:
+    async def create_table(
+        self, name: str, signature: Dict[str, str], force: bool = False
+    ) -> bool:
         query = f"CREATE TABLE {name} (\n"
         index = None
         for variable, sig in signature.items():
@@ -114,18 +126,20 @@ class SQLDatabase(Database):
         query += f"PRIMARY KEY({index})"
         query += ") default charset=utf8mb4;"
         try:
+            if force is True:
+                force_query = f"DROP TABLE IF EXISTS {name};"
+                self.cursor.execute(force_query)
             self.cursor.execute(query)
             return True
         except Exception as e:
-            with open("log.txt", "w") as sys.stdout:
-                print(str(e))
+            src.logger.log_exception(e)
             return False
 
-    async def update_table(self, name: str, signature: dict):
-        raise NotImplementedError
+    async def update_table(self, name: str, signature: dict) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def change_table(self, name, signature: dict):
-        raise NotImplementedError
+    async def change_table(self, name, signature: dict) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
     async def delete_table(self, name: str) -> bool:
         try:
@@ -134,21 +148,29 @@ class SQLDatabase(Database):
         except Exception:
             return False
 
-    async def insert_document(self, document: dict):
-        raise NotImplementedError
+    async def insert_document(self, document: dict) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def update_document(self, search_key: str, search_value: Any, document: dict):
-        raise NotImplementedError
+    async def update_document(
+        self, search_key: str, search_value: Any, document: dict
+    ) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def delete_document(self, search_key: str, search_value: Any):
-        raise NotImplementedError
+    async def delete_document(self, search_key: str, search_value: Any) -> Any:
+        src.logger.log_exception(NotImplementedError)
 
-    async def create_index(self, key: str):
-        raise NotImplementedError
+    async def create_index(self, key: str) -> Any:
+        src.logger.log_exception(NotImplementedError)
+
+    async def find_document(self, query: dict[str, Any]) -> Any:
+        src.logger.log_exception(NotImplementedError)
+
+    async def find_documents(self, query: dict[str, Any]) -> list[Any]:  # type: ignore
+        src.logger.log_exception(NotImplementedError)
 
 
 class MariaDB(SQLDatabase):
-    async def initialize(self) -> "MariaDB":
+    async def initialize(self) -> "MariaDB | None":
         try:
             if DATABASE is None:
                 conn = mariadb.connect(
@@ -158,9 +180,7 @@ class MariaDB(SQLDatabase):
                     port=DATABASE_PORT,
                 )
                 cursor = conn.cursor()
-                cursor.execute(
-                    "CREATE TABLE planetae;"
-                )
+                cursor.execute("CREATE TABLE planetae;")
                 cursor.close()
                 conn.close()
             self.db: mariadb.Connection = mariadb.connect(
@@ -173,7 +193,7 @@ class MariaDB(SQLDatabase):
             self.cursor: mariadb.Cursor = self.db.cursor()
             return self
         except mariadb.Error as e:
-            raise CouldNotConnectWithDatabaseException(str(e))
+            src.logger.log_exception(CouldNotConnectWithDatabaseException(str(e)))
 
 
 class NoSQLDatabase(Database):

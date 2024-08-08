@@ -12,7 +12,7 @@ async def test_create_mariadb_table():
         "email": "varchar(50) NOT NULL",
     }
     mariadb = await MariaDB().initialize()
-    assert await mariadb.create_table(name=name, signature=signature)
+    assert await mariadb.create_table(name=name, signature=signature, force=True)
 
 
 @pytest.mark.asyncio()
